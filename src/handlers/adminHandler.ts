@@ -1,0 +1,40 @@
+import TelegramBot from "node-telegram-bot-api"
+import { ReportService } from "../services/reportService"
+import * as dotenv from 'dotenv';
+import pool from "../../database/db"
+
+dotenv.config();
+
+export function handleAdminCommand(chatId: number, command: string, bot: TelegramBot) {
+  try {
+    const adminChatId = process.env.ADMIN_CHAT
+    if (!adminChatId || chatId !== +adminChatId) {
+      return console.log(`Сhat id ${chatId} does not have access.`)
+    }
+    const action = command.split('__')[1]
+
+    if (action === 'run_report_service') {
+      console.log('admin started report serivce')
+      const RS = new ReportService(pool);
+      RS.run()
+    }
+
+    if (action.startsWith('clean_db')) {
+      const db = action.split('db_')[1]; 
+      if (db) {
+        pool.query(`DELETE FROM ${db}`, (err, result) => {
+          if (err) {
+            console.error(`Failed to delete data from ${db}:`, err);
+          } else {
+            console.log(`All data deleted from ${db} by admin`);
+          }
+        });
+      } else {
+        console.error('No table specified for deletion.');
+      }
+    }
+    
+  } catch (e) {
+    console.error('error in admin handler: '+e)
+  }
+}
