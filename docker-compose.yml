@@ -1,34 +1,42 @@
-
 services:
-  redis:
+  inner-x10Bot-redis:
     image: redis:latest
-    ports:
-      - "6379:6379"
     volumes:
-      - redis_data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
 
-  app:
-    image: node:18-alpine 
-    working_dir: /usr/src/app  
-    volumes:
-      - .:/usr/src/app  
-    command: sh -c "npm install && npm start"  
+  inner-x10Bot-app:
+    build: .
+    image: x10-inner-bot-app
+    working_dir: /usr/src/app
     environment:
-      - REDIS_HOST=redis
-      - PGHOST=postgres
+      - REDIS_HOST=inner-x10Bot-redis
+      - PGHOST=inner-x10Bot-postgres
       - PGUSER=${PGUSER}
       - PGNAME=${PGNAME}
       - PGPASS=${PGPASS}
       - PGPORT=5432
     depends_on:
-      - redis
-      - postgres
+      - inner-x10Bot-redis
+      - inner-x10Bot-postgres
     ports:
-      - "3000:3000"
+      - "3001:3000"
+    restart: always
 
-  postgres:
+  inner-x10Bot-postgres:
     image: postgres:15-alpine
-    container_name: postgres
+    container_name: inner-x10Bot-postgres
     environment:
       - POSTGRES_USER=${PGUSER}
       - POSTGRES_PASSWORD=${PGPASS}
@@ -36,24 +44,25 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - x10-inner-bot_postgres_data:/var/lib/postgresql/data
+    restart: always
 
-  report-service:
-    image: node:18-alpine
+  inner-x10Bot-report-service:
+    build: .
+    image: x10-inner-bot-report-service
     working_dir: /usr/src/app
-    volumes:
-      - .:/usr/src/app
+    command: sh -c "node dist/src/services/reportService.js"
     environment:
-      - PGHOST=postgres
+      - PGHOST=inner-x10Bot-postgres
       - PGUSER=${PGUSER}
       - PGNAME=${PGNAME}
       - PGPASS=${PGPASS}
       - PGPORT=5432
       - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
-    command: sh -c "npm install && npm run build && node dist/src/services/reportService.js"
+      - SERVICE_TYPE=report
     depends_on:
-      - postgres
+      - inner-x10Bot-postgres
+    restart: always
 
 volumes:
-  redis_data:
-  postgres_data:
+  x10-inner-bot_postgres_data:

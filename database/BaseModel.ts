@@ -13,6 +13,20 @@ export abstract class BaseModel<T> {
     this.pool = pool;
   }
 
+  async getAllData() {
+    try {
+      const usersResult = await this.pool.query('SELECT * FROM users');
+      const connectionsResult = await this.pool.query('SELECT * FROM connections');
+  
+      return {
+        users: usersResult.rows,
+        connections: connectionsResult.rows,
+      };
+    } catch (err) {
+      console.error('Ошибка при получении данных:', err);
+    }
+  }
+
   async insert(data: Partial<T>): Promise<void> {
     const columns = Object.keys(data).join(', ');
     const values = Object.values(data);
@@ -44,10 +58,9 @@ export abstract class BaseModel<T> {
     const columnNames = columns.map((col) => `"${col}"`).join(', ');
     const valuePlaceholders = columns.map((_, index) => `$${index + 1}`).join(', ');
   
-    // Учитываем все уникальные столбцы для ON CONFLICT
     const conflictColumns = uniqueColumns.map((col) => `"${String(col)}"`).join(', ');
     const conflictAction = columns
-      .filter((col) => !uniqueColumns.includes(col as keyof T)) // исключаем уникальные столбцы
+      .filter((col) => !uniqueColumns.includes(col as keyof T)) 
       .map((col) => `"${col}" = EXCLUDED."${col}"`)
       .join(', ');
   

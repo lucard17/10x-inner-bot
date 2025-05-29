@@ -1,22 +1,50 @@
 import TelegramBot from "node-telegram-bot-api"
-import { ReportService } from "../services/reportService"
+import { reportService } from "../services/reportService.js"
 import * as dotenv from 'dotenv';
-import pool from "../../database/db"
+import pool from "../../database/db.js"
+import { migrations } from "../helpers/wip-quick-fix-migration.js";
+import { users_db } from "../../database/models/users.js";
+import axios from "axios";
+import { formatError } from "../utils/string.js";
 
 dotenv.config();
 
-export function handleAdminCommand(chatId: number, command: string, bot: TelegramBot) {
+const helpInfo = `
+/admin__run_report_service - запуск репорт сервиса на прошедший час
+/admin__run_report_service_hour_{number} - запуск репорт сервиса на выбранный час
+/admin__clean_db_{tableName} - очистить таблицу в базе данных
+/admin__delete_user_{id} - удалить пользователя из таблицы users
+`
+
+export async function handleAdminCommand(chat_id: number, command: string, bot: TelegramBot) {
   try {
-    const adminChatId = process.env.ADMIN_CHAT
-    if (!adminChatId || chatId !== +adminChatId) {
-      return console.log(`Сhat id ${chatId} does not have access.`)
+
+    const adminChatIds = process.env.ADMIN_CHAT ? process.env.ADMIN_CHAT.split(',').map(Number) : [];
+
+    if (!process.env.ADMIN_CHAT) {
+      return console.log(`Error to getting admins from the env`)
     }
+
+    if (!adminChatIds.includes(chat_id)) {
+      return console.log(`Chat id ${chat_id} does not have access.`);
+    }
+
     const action = command.split('__')[1]
+    console.log('admin handler action: ', action)
 
     if (action === 'run_report_service') {
       console.log('admin started report serivce')
-      const RS = new ReportService(pool);
-      RS.run()
+      if (reportService) {
+        reportService.run()
+      }
+    }
+
+    if (action.startsWith('run_report_service_hour_')) {
+      const hour = +action.split('hour_')[1];
+      console.log('admin started report serivce')
+      if (reportService) {
+        reportService.run(hour)
+      }
     }
 
     if (action.startsWith('clean_db')) {
@@ -33,8 +61,51 @@ export function handleAdminCommand(chatId: number, command: string, bot: Telegra
         console.error('No table specified for deletion.');
       }
     }
+
+    if (action.startsWith('delete_user')) {
+      const user = action.split('delete_user_')[1]; 
+      if (user) {
+        pool.query(`DELETE FROM users WHERE chat_id = ${user}`, (err, result) => {
+          if (err) {
+            console.error(`Failed to delete ${user}:`, err);
+          } else {
+            console.log(`delete ${user} by admin`);
+          }
+        });
+      } else {
+        console.error('No table specified for deletion.');
+      }
+    }
+    
+    if (action.startsWith('help')) {
+      await bot.sendMessage(chat_id, helpInfo)
+    }
+
+    // work in progress, now all migrations are added to the folder sql migrations and helpers/wip 
+    if (action.startsWith('db_migrate')) {
+      const step = +action.split('migrate_')[1]
+      try {
+        migrations[step].forEach(m => pool.query(m))
+      } catch (e) {
+        formatError(e, 'error during migration process')
+      }
+    }
+
+  // send all data to spreadsheet db
+  if (action.startsWith('send_all_data')) {
+    const data = await users_db.getAllData();
+
+    // Отправка запроса без обработки
+    axios.post(process.env.SS_ALL_DATA_URL!, data, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }).catch(error => {
+      formatError(error, 'Error sending all data: ')
+    });
+  }
     
   } catch (e) {
-    console.error('error in admin handler: '+e)
+    formatError(e, 'error in admin handler: ')
   }
 }
