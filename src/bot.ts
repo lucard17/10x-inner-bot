@@ -5,7 +5,7 @@ import { MessageService } from './services/message.service';
 import { setBotCommands } from './components/buttons.component';
 import { handleCallbackQuery } from './handlers/callback.handler';
 import { handleTextMessage } from './handlers/text.handler';
-import { handleAdminCommand } from './handlers/adminHandler';
+import { handleAdminCommand } from './handlers/admin_handler';
 
 const env = getEnv();
 const bot = new TelegramBot(env.TELEGRAM_TOKEN, { polling: true });
