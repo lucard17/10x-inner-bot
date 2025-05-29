@@ -177,5 +177,8 @@ A TypeScript-based Telegram bot for managing spreadsheet connections, generating
 | `PASS_CHECKER_URL`  | API for connection key verification     | Yes      |
 | `ADMIN_CHAT`        | Comma-separated admin chat IDs         | Yes      |
 | `SS_ALL_DATA_URL`   | Spreadsheet data endpoint             | Yes      |
-| `POSTGRES_URL`      | PostgreSQL connection string           | Yes      |
-| `REDIS_URL`         | Redis connection string                | Yes      |
+| `PGUSER`            | For PG connection                     | Yes      |
+| `PGHOST`            | For PG connection                     | Yes      |
+| `PGNAME`            | For PG connection                     | Yes      |
+| `PGPASS`            | For PG connection                     | Yes      |
+| `BASE_PORT`            | Server port                     | No      |
