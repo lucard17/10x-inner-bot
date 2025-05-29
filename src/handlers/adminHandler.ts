@@ -1,111 +1,157 @@
-import TelegramBot from "node-telegram-bot-api"
-import { reportService } from "../services/reportService.js"
-import * as dotenv from 'dotenv';
-import pool from "../../database/db.js"
-import { migrations } from "../helpers/wip-quick-fix-migration.js";
-import { users_db } from "../../database/models/users.js";
-import axios from "axios";
-import { formatError } from "../utils/string.js";
+import TelegramBot from 'node-telegram-bot-api';
+import { Pool } from 'pg';
+import axios from 'axios';
+import { ReportService } from '../services/report.service';
+import { usersDb } from '../db/users.model';
+import { getEnv } from '../config/env.config';
+import { formatError } from '../utils/string.utils';
+import { migrations } from '../helpers/wip-quick-fix-migration';
+import pool from '../db/db.config';
 
-dotenv.config();
+const env = getEnv();
 
 const helpInfo = `
-/admin__run_report_service - запуск репорт сервиса на прошедший час
-/admin__run_report_service_hour_{number} - запуск репорт сервиса на выбранный час
-/admin__clean_db_{tableName} - очистить таблицу в базе данных
-/admin__delete_user_{id} - удалить пользователя из таблицы users
-`
+/admin__run_report_service - Run report service for the previous hour
+/admin__run_report_service_hour_{number} - Run report service for a specific hour
+/admin__clean_db_{tableName} - Clear a database table
+/admin__delete_user_{id} - Delete a user from the users table
+/admin__help - Show this help message
+/admin__db_migrate_{step} - Run database migrations for a specific step
+/admin__send_all_data - Send all data to spreadsheet
+`;
 
-export async function handleAdminCommand(chat_id: number, command: string, bot: TelegramBot) {
-  try {
+interface AdminAction {
+  (chatId: number, bot: TelegramBot, params?: string): Promise<void>;
+}
 
-    const adminChatIds = process.env.ADMIN_CHAT ? process.env.ADMIN_CHAT.split(',').map(Number) : [];
-
-    if (!process.env.ADMIN_CHAT) {
-      return console.log(`Error to getting admins from the env`)
+const adminActions: Record<string, AdminAction> = {
+  run_report_service: async (chatId, bot) => {
+    try {
+      console.log('Admin started report service');
+      const reportService = new ReportService(new Pool());
+      await reportService.run();
+      await bot.sendMessage(chatId, 'Report service executed successfully.');
+    } catch (error) {
+      throw new Error(`Failed to run report service: ${error}`);
     }
-
-    if (!adminChatIds.includes(chat_id)) {
-      return console.log(`Chat id ${chat_id} does not have access.`);
+  },
+  run_report_service_hour: async (chatId, bot, params) => {
+    try {
+      const hour = params ? parseInt(params, 10) : NaN;
+      if (isNaN(hour)) throw new Error('Invalid hour specified');
+      console.log(`Admin started report service for hour ${hour}`);
+      const reportService = new ReportService(new Pool());
+      await reportService.run(hour);
+      await bot.sendMessage(chatId, `Report service executed for hour ${hour}.`);
+    } catch (error) {
+      throw new Error(`Failed to run report service for hour: ${error}`);
     }
-
-    const action = command.split('__')[1]
-    console.log('admin handler action: ', action)
-
-    if (action === 'run_report_service') {
-      console.log('admin started report serivce')
-      if (reportService) {
-        reportService.run()
+  },
+  clean_db: async (chatId, bot, params) => {
+    try {
+      if (!params) throw new Error('No table specified for deletion');
+      const tableName = params.replace(/[^a-zA-Z_]/g, ''); // Sanitize input
+      if (!['users', 'connections'].includes(tableName)) {
+        throw new Error('Invalid table name');
       }
+      await pool.query(`DELETE FROM ${tableName}`);
+      console.log(`All data deleted from ${tableName} by admin`);
+      await bot.sendMessage(chatId, `Table ${tableName} cleared successfully.`);
+    } catch (error) {
+      throw new Error(`Failed to clear table: ${error}`);
     }
+  },
+  delete_user: async (chatId, bot, params) => {
+    try {
+      const userId = params ? parseInt(params, 10) : NaN;
+      if (isNaN(userId)) throw new Error('Invalid user ID specified');
+      await pool.query('DELETE FROM users WHERE chat_id = $1', [userId]);
+      console.log(`User ${userId} deleted by admin`);
+      await bot.sendMessage(chatId, `User ${userId} deleted successfully.`);
+    } catch (error) {
+      throw new Error(`Failed to delete user: ${error}`);
+    }
+  },
+  help: async (chatId, bot) => {
+    await bot.sendMessage(chatId, helpInfo);
+  },
+  db_migrate: async (chatId, bot, params) => {
+    try {
+      const step = params ? parseInt(params, 10) : NaN;
+      if (isNaN(step) || !migrations[step]) throw new Error('Invalid migration step');
+      for (const migration of migrations[step]) {
+        await pool.query(migration);
+      }
+      console.log(`Migration step ${step} executed successfully`);
+      await bot.sendMessage(chatId, `Migration step ${step} completed successfully.`);
+    } catch (error) {
+      throw new Error(`Error during migration process: ${error}`);
+    }
+  },
+  send_all_data: async (chatId, bot) => {
+    try {
+      const data = await usersDb.getAllData();
+      if (!env.SS_ALL_DATA_URL) throw new Error('SS_ALL_DATA_URL not configured');
+      await axios.post(env.SS_ALL_DATA_URL, data, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      console.log('All data sent to spreadsheet');
+      await bot.sendMessage(chatId, 'All data sent to spreadsheet successfully.');
+    } catch (error) {
+      throw new Error(`Error sending all data: ${error}`);
+    }
+  },
+};
+
+/**
+ * Handles admin commands starting with /admin__.
+ * @param chatId - User's chat ID.
+ * @param command - Command text.
+ * @param bot - Telegram bot instance.
+ */
+export async function handleAdminCommand(chatId: number, command: string, bot: TelegramBot): Promise<void> {
+  try {
+    const adminChatIds = env.ADMIN_CHAT ? env.ADMIN_CHAT.split(',').map(Number) : [];
+    if (!adminChatIds.includes(chatId)) {
+      console.log(`Chat ID ${chatId} does not have access.`);
+      await bot.sendMessage(chatId, 'Access denied.');
+      return;
+    }
+
+    const [prefix, action] = command.split('__');
+    if (prefix !== '/admin') {
+      console.log(`Invalid admin command prefix: ${prefix}`);
+      return;
+    }
+
+    console.log('Admin handler action:', action);
+
+    let handler: AdminAction | undefined;
+    let params: string | undefined;
 
     if (action.startsWith('run_report_service_hour_')) {
-      const hour = +action.split('hour_')[1];
-      console.log('admin started report serivce')
-      if (reportService) {
-        reportService.run(hour)
-      }
+      handler = adminActions.run_report_service_hour;
+      params = action.split('hour_')[1];
+    } else if (action.startsWith('clean_db_')) {
+      handler = adminActions.clean_db;
+      params = action.split('clean_db_')[1];
+    } else if (action.startsWith('delete_user_')) {
+      handler = adminActions.delete_user;
+      params = action.split('delete_user_')[1];
+    } else if (action.startsWith('db_migrate_')) {
+      handler = adminActions.db_migrate;
+      params = action.split('db_migrate_')[1];
+    } else {
+      handler = adminActions[action];
     }
 
-    if (action.startsWith('clean_db')) {
-      const db = action.split('db_')[1]; 
-      if (db) {
-        pool.query(`DELETE FROM ${db}`, (err, result) => {
-          if (err) {
-            console.error(`Failed to delete data from ${db}:`, err);
-          } else {
-            console.log(`All data deleted from ${db} by admin`);
-          }
-        });
-      } else {
-        console.error('No table specified for deletion.');
-      }
+    if (handler) {
+      await handler(chatId, bot, params);
+    } else {
+      await bot.sendMessage(chatId, 'Unknown admin command. Use /admin__help for available commands.');
     }
-
-    if (action.startsWith('delete_user')) {
-      const user = action.split('delete_user_')[1]; 
-      if (user) {
-        pool.query(`DELETE FROM users WHERE chat_id = ${user}`, (err, result) => {
-          if (err) {
-            console.error(`Failed to delete ${user}:`, err);
-          } else {
-            console.log(`delete ${user} by admin`);
-          }
-        });
-      } else {
-        console.error('No table specified for deletion.');
-      }
-    }
-    
-    if (action.startsWith('help')) {
-      await bot.sendMessage(chat_id, helpInfo)
-    }
-
-    // work in progress, now all migrations are added to the folder sql migrations and helpers/wip 
-    if (action.startsWith('db_migrate')) {
-      const step = +action.split('migrate_')[1]
-      try {
-        migrations[step].forEach(m => pool.query(m))
-      } catch (e) {
-        formatError(e, 'error during migration process')
-      }
-    }
-
-  // send all data to spreadsheet db
-  if (action.startsWith('send_all_data')) {
-    const data = await users_db.getAllData();
-
-    // Отправка запроса без обработки
-    axios.post(process.env.SS_ALL_DATA_URL!, data, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }).catch(error => {
-      formatError(error, 'Error sending all data: ')
-    });
-  }
-    
-  } catch (e) {
-    formatError(e, 'error in admin handler: ')
+  } catch (error) {
+    formatError(error, `Error in admin handler for chat ${chatId}:`);
+    await bot.sendMessage(chatId, 'An error occurred while processing the admin command.');
   }
 }

@@ -1,51 +1,46 @@
 import TelegramBot from 'node-telegram-bot-api';
-import dotenv from 'dotenv';
-import { setBotCommands } from './components/buttons.js';
-import { redis } from './redis.js';
-import { MessageMS, UserMsg } from './types/messages.js';
-import { MsgService } from './services/messageService.js';
-import { callbackHandler } from './handlers/callbackHandler.js';
-import { handleAdminCommand } from './handlers/adminHandler.js';
-import { handleMenuCommand, handleUserState } from './handlers/textHandler.js';
+import { getEnv } from './config/env.config';
+import { RedisService } from './services/redis.service';
+import { MessageService } from './services/message.service';
+import { setBotCommands } from './components/buttons.component';
+import { handleCallbackQuery } from './handlers/callback.handler';
+import { handleTextMessage } from './handlers/text.handler';
+import { handleAdminCommand } from './handlers/adminHandler';
 
-dotenv.config();
-
-const token = process.env.TELEGRAM_TOKEN;
-if (!token) {
-  throw new Error('Telegram token not found');
-}
-
-export const bot = new TelegramBot(token, { polling: true });
-export const RediceService = new redis();
-export const MessageService = new MsgService(bot, RediceService.getClient());
+const env = getEnv();
+const bot = new TelegramBot(env.TELEGRAM_TOKEN, { polling: true });
+const redisService = new RedisService();
+const messageService = MessageService.getInstance(bot, redisService.getClient());
 
 setBotCommands(bot);
 
 bot.on('callback_query', async (query) => {
-  const chatId = query.message?.chat.id;
-  if (!chatId) return;
-  
-  await callbackHandler(query, bot, RediceService, MessageService);
+  if (!query.message?.chat.id) return;
+  await handleCallbackQuery(query, bot, redisService, messageService);
 });
 
 bot.on('message', async (msg) => {
-  const userMessage = new UserMsg(msg);
-  const { chat_id, text, message_id } = userMessage;
+  if (!msg.text || !msg.chat.id) return;
 
-  if (!text) return;
+  const userMessage = {
+    chat_id: msg.chat.id,
+    text: msg.text,
+    message_id: msg.message_id,
+    username: msg.from?.username,
+  };
 
-  const messageArray: MessageMS[] = [new MessageMS({ chat_id, message_id, content: text })];
-
-  if (text.startsWith('/admin__')) {
-    return handleAdminCommand(chat_id, text, bot);
-  }
-
-  if (['/start', '/menu'].includes(text)) {
-    await handleMenuCommand(userMessage, chat_id, text, messageArray);
+  if (msg.text.startsWith('/admin__')) {
+    await handleAdminCommand(userMessage.chat_id, msg.text, bot);
     return;
   }
 
-  await handleUserState(chat_id, messageArray, userMessage);
+  if (['/start', '/menu'].includes(userMessage.text)) {
+    await handleTextMessage(userMessage, true, redisService, messageService);
+    return;
+  }
+
+  await handleTextMessage(userMessage, false, redisService, messageService);
 });
 
-console.log('Bot started!');
+console.log('Bot started successfully!');
+export { bot, redisService, messageService };

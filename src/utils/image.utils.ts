@@ -1,5 +1,5 @@
 import nodeHtmlToImage from "node-html-to-image";
-import { formatNumberValue, formatPercent } from "./string";
+import { formatNumberValue, formatPercent } from "./string.utils";
 
 export async function getImageForReport(sheetData: any[]): Promise<Buffer | null> {
   const data = sheetData;

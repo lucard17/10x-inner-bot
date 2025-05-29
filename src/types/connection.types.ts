@@ -1,21 +1,18 @@
 export interface Connection {
-  ss: string;
   chat_id: number;
+  ss: string;
+  title: string;
+  status: ConnectionStatus;
   notification_time?: number;
-  title?: string;
   type?: string;
-  status?: ConnectionStatus;
-  report_on?: boolean;
 }
- 
+
 export type ConnectionStatus = 'on' | 'off';
 
 export interface ConnectionCallbackData {
-  mn?: string;
-  ss: string;
-  sts: ConnectionStatus;
-  an?: string;
+  action: string;
+  spreadsheetId: string;
+  status: ConnectionStatus;
+  additional: string;
 }
-
-
 
