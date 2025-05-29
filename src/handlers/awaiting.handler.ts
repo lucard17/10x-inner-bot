@@ -5,6 +5,7 @@ import { connectionsDb } from '../db/connections.model';
 import { UserMessage, AwaitingAnswer } from '../types/message.types';
 import { getEnv } from '../config/env.config';
 import { formatError, getFormatReportTitle } from '../utils/string.utils';
+import { mainOptions } from '../components/buttons.component';
 
 const env = getEnv();
 
@@ -59,10 +60,18 @@ export async function handleAwaitingInput(userMessage: UserMessage, state: strin
     if (state.startsWith(UserState.AwaitingConnectionTitle)) {
       const [, spreadsheetId] = state.split('?');
       if (!spreadsheetId) {
+        console.error('Awaiting handler: Missing spreadsheetId in state:', state);
         return handleError('Ошибка, попробуйте позже');
       }
-      await connectionsDb.updateTitle(userMessage.chat_id, spreadsheetId, `⚙️${userMessage.text}`);
-      return new AwaitingAnswer({ result: true, text: '✅ Подключение переименовано.' });
+      const title = userMessage.text.trim();
+      if (title.length > 50 || title.length < 1) {
+        return handleError('Название должно быть от 1 до 50 символов.');
+      }
+      await connectionsDb.updateTitle(userMessage.chat_id, spreadsheetId, `⚙️${title}`);
+      return new AwaitingAnswer({ 
+        result: true, 
+        text: `✅ Подключение переименовано на "${title}".`
+      });
     }
 
     return handleError('Возникла ошибка, попробуйте еще раз.');
@@ -93,7 +102,7 @@ function isValidKey(text: string, state: string): boolean {
   if ([UserState.AwaitingPremPass, UserState.AwaitingNewConnection].includes(state as UserState)) {
     return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d_-]{20,}$/.test(text);
   }
-  return true;
+  return true; // No strict validation for connection title
 }
 
 /**
