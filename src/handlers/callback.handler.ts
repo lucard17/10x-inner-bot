@@ -75,7 +75,7 @@ const callbackHandlers: Record<CallbackAction, CallbackHandler> = {
   [CallbackAction.EditConnectionTitle]: async (userCallback, _, redis, messageService) => {
     const data = parseConnectionData(userCallback.userCallbackData);
     const stateWithData = `${UserState.AwaitingConnectionTitle}?${data.spreadsheetId}`;
-    console.log('Setting state for EditConnectionTitle:', stateWithData); // debug log
+
     await redis.setUserState(userCallback.chat_id, stateWithData as UserState, TTL.USUAL);
     await messageService.editMessage(userCallback.chat_id, userCallback.message_id, {
       text: '✏ Введите новое название подключения:',
@@ -190,7 +190,6 @@ export async function handleCallbackQuery(
     return;
   }
 
-  console.log('Received callback data:', userCallbackData); // Debug log
   const [action] = userCallbackData.split('?') as [CallbackAction, string];
   const handler = callbackHandlers[action];
   if (handler) {
