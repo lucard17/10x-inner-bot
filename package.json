@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node dist/src/bot.js",
-    "report": "node dist/src/services/reportService.js",
+    "report": "node dist/src/services/report.service.js",
     "build": "tsc"
   },
   "keywords": [],

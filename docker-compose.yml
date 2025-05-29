@@ -51,7 +51,7 @@ services:
     build: .
     image: x10-inner-bot-report-service
     working_dir: /usr/src/app
-    command: sh -c "node dist/src/services/reportService.js"
+    command: sh -c "node dist/src/services/report.service.js"
     environment:
       - PGHOST=inner-x10Bot-postgres
       - PGUSER=${PGUSER}
