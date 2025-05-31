@@ -168,3 +168,6 @@ export async function runPersonReport(chatId: number, type: 'single' | 'all', sp
     return null;
   }
 }
+
+const reportService = new ReportService(pool);
+reportService.startCronJob();
