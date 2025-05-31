@@ -70,7 +70,7 @@ export class ReportService {
         }
         console.log(`Error getting data from 10x server: ${response.status}`);
       } catch (error) {
-        console.error(`Error during request, retrying... Attempt ${attempts + 1}:`, error);
+        console.error(`Retry ${attempts + 1}: 404 Error`);
       }
 
       attempts++;
