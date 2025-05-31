@@ -140,9 +140,9 @@ A TypeScript-based Telegram bot for managing spreadsheet connections, generating
   - Stores messages in Redis and handles images with captions.
   - Uses `FormData` for media uploads.
 
-- **`src/callback.processor.ts`** (pending confirmation):
+- **`src/callback.processor.ts`**:
   - Maps `callback_data` to action strings (e.g., `"menu"`, `"report now"`).
-  - Likely used in `callback.handler.ts` to process button clicks.
+  - Used in `callback.handler.ts` to process button clicks.
 
 - **Other Files**:
   - `src/handlers/admin.handler.ts`: Processes `/admin__` commands.
