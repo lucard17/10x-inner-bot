@@ -21,8 +21,7 @@ const callbackHandlers: Record<CallbackAction, CallbackHandler> = {
   },
   [CallbackAction.MenuAndEdit]: async (userCallback, bot, redis, messageService) => {
     await redis.deleteUserState(userCallback.chat_id);
-    const menu = await messageService.getSpecialMessage(userCallback.chat_id, 'menu');
-    await handleStartMenu(userCallback, '/menu', !menu, menu?.message_id);
+    await handleStartMenu(userCallback, '/menu');
   },
   [CallbackAction.RegistrateUser]: async (userCallback, _, redis, messageService) => {
     await redis.setUserState(userCallback.chat_id, UserState.AwaitingPremPass, TTL.USUAL);
