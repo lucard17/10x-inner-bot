@@ -87,6 +87,8 @@ A TypeScript-based Telegram bot for managing spreadsheet connections, generating
 - `/admin__help`: Lists all admin commands.
 - `/admin__db_migrate_{step}`: Executes database migrations.
 - `/admin__send_all_data`: Sends all user data to a spreadsheet.
+- `/admin__add_to_blacklist_{ss}_{username}`: Adds user to blacklist for spreadsheet.
+- `/admin__remove_from_blacklist_{ss}_{username}`: Removes user from blacklist for spreadsheet.
 
 ### Inline Keyboards
 
@@ -113,17 +115,20 @@ A TypeScript-based Telegram bot for managing spreadsheet connections, generating
 ### Key Components
 
 - **`src/bot.ts`**:
+
   - Initializes `TelegramBot`, `RedisService`, and `MessageService`.
   - Listens for `callback_query` (via `handleCallbackQuery`) and `message` events (via `handleTextMessage` or `handleAdminCommand`).
   - Sets bot commands (`/menu`) via `setBotCommands`.
 
 - **`src/handlers/text.handler.ts`**:
+
   - Handles text messages:
     - `/start` and `/menu`: Clears state and shows the main menu.
     - State-based input: Calls `handleAwaitingInput` for Redis states.
   - Manages messages (save, edit, delete) using `MessageService`.
 
 - **`src/handlers/awaiting.handler.ts`**:
+
   - Processes user input for Redis states:
     - `AwaitingPremPass`: Validates connection key, adds connection, updates user type.
     - `AwaitingNewConnection`: Validates key, adds connection.
@@ -131,16 +136,19 @@ A TypeScript-based Telegram bot for managing spreadsheet connections, generating
   - Uses `Axios` to verify keys via `PASS_CHECKER_URL`.
 
 - **`src/components/buttons.component.ts`**:
+
   - Defines `CallbackAction` enum (e.g., `Menu = 'menu'`, `GetReportNow = 'grn'`).
   - Generates inline keyboards (`mainOptions`, `connectionOptions`, `generateConnectionsButtons`).
   - Supports pagination for connections and report times.
 
 - **`src/services/message.service.ts`**:
+
   - Singleton service for Telegram message operations (send, edit, delete).
   - Stores messages in Redis and handles images with captions.
   - Uses `FormData` for media uploads.
 
 - **`src/callback.processor.ts`**:
+
   - Maps `callback_data` to action strings (e.g., `"menu"`, `"report now"`).
   - Used in `callback.handler.ts` to process button clicks.
 
@@ -171,14 +179,14 @@ A TypeScript-based Telegram bot for managing spreadsheet connections, generating
 
 ## Environment Variables
 
-| Variable            | Description                              | Required |
-|---------------------|-----------------------------------------|----------|
-| `TELEGRAM_TOKEN`    | Telegram Bot Token from BotFather       | Yes      |
-| `PASS_CHECKER_URL`  | API for connection key verification     | Yes      |
-| `ADMIN_CHAT`        | Comma-separated admin chat IDs         | Yes      |
-| `SS_ALL_DATA_URL`   | Spreadsheet data endpoint             | Yes      |
-| `PGUSER`            | For PG connection                     | Yes      |
-| `PGHOST`            | For PG connection                     | Yes      |
-| `PGNAME`            | For PG connection                     | Yes      |
-| `PGPASS`            | For PG connection                     | Yes      |
-| `BASE_PORT`            | Server port                     | No      |
+| Variable           | Description                         | Required |
+| ------------------ | ----------------------------------- | -------- |
+| `TELEGRAM_TOKEN`   | Telegram Bot Token from BotFather   | Yes      |
+| `PASS_CHECKER_URL` | API for connection key verification | Yes      |
+| `ADMIN_CHAT`       | Comma-separated admin chat IDs      | Yes      |
+| `SS_ALL_DATA_URL`  | Spreadsheet data endpoint           | Yes      |
+| `PGUSER`           | For PG connection                   | Yes      |
+| `PGHOST`           | For PG connection                   | Yes      |
+| `PGNAME`           | For PG connection                   | Yes      |
+| `PGPASS`           | For PG connection                   | Yes      |
+| `BASE_PORT`        | Server port                         | No       |
