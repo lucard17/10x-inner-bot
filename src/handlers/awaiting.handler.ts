@@ -6,6 +6,8 @@ import { UserMessage, AwaitingAnswer } from "../types/message.types";
 import { getEnv } from "../config/env.config";
 import { formatError, getFormatReportTitle } from "../utils/string.utils";
 import { mainOptions } from "../components/buttons.component";
+import { SpreadsheetResult } from "../types/spreadsheet.types";
+import { btlzApi } from "../config/telegram.config";
 
 const env = getEnv();
 
@@ -36,20 +38,19 @@ export async function handleAwaitingInput(
       state === UserState.AwaitingNewConnection
     ) {
       const response = await checkConnection(userMessage.text);
-      console.log("Pass checker result:", JSON.stringify(response.data));
 
-      if (response.data.error) {
+      if (response.error) {
         return handleError("Возникла ошибка, попробуйте еще раз.");
       }
-      if (response.data.status === false) {
+      if (response.status === false) {
         return handleError("Неверный пароль, попробуйте еще раз.");
       }
 
       try {
         await connectionsDb.addConnection({
           chat_id: userMessage.chat_id,
-          ss: response.data.spreadsheet_id,
-          title: `⚙️${getFormatReportTitle(response.data.spreadsheet_name)}`,
+          ss: response.spreadsheet_id,
+          title: `⚙️${getFormatReportTitle(response.spreadsheet_id)}`,
         });
       } catch (error) {
         return handleError("Доступ к таблице закрыт");
@@ -104,19 +105,53 @@ export async function handleAwaitingInput(
   }
 }
 
+async function getSpreadsheet(
+  spreadsheetId: string
+): Promise<SpreadsheetResult> {
+  const maxRetries = 3;
+  let attempts = 0;
+
+  while (attempts < maxRetries) {
+    try {
+      console.log(spreadsheetId);
+      const response = await axios.get(btlzApi.spreadsheet(spreadsheetId), {
+        headers: { Authorization: `Bearer ${btlzApi.token}` },
+      });
+
+      if (response.status === 200) {
+        return {
+          status: true,
+          spreadsheet_id: response.data.spreadsheet_id,
+          error: "",
+        };
+      }
+
+      console.log(`Error getting data from 10x server: ${response.status}`);
+    } catch (error) {
+      console.error(`Retry ${attempts + 1}: 404 Error`);
+    }
+
+    attempts++;
+    if (attempts < maxRetries) {
+      await new Promise((resolve) => setTimeout(resolve, 60000));
+    }
+  }
+
+  console.error("Max retry attempts reached.");
+  return {
+    status: false,
+    spreadsheet_id: "",
+    error: "Max retry attempts reached.",
+  };
+}
+
 /**
  * Checks the validity of a connection key with the backend.
  * @param code - Connection key to verify.
- * @returns Axios response containing the verification result.
+ * @returns Reponse object.
  */
 async function checkConnection(code: string) {
-  return axios.post(
-    env.PASS_CHECKER_URL,
-    { pass: code },
-    {
-      headers: { "Content-Type": "application/json" },
-    }
-  );
+  return await getSpreadsheet(code);
 }
 
 /**
