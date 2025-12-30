@@ -50,7 +50,7 @@ export async function handleAwaitingInput(
         await connectionsDb.addConnection({
           chat_id: userMessage.chat_id,
           ss: response.spreadsheet_id,
-          title: `⚙️${getFormatReportTitle(response.spreadsheet_id)}`,
+          title: `⚙️${getFormatReportTitle(response.title)}`,
         });
       } catch (error) {
         return handleError("Доступ к таблице закрыт");
@@ -122,6 +122,7 @@ async function getSpreadsheet(
         return {
           status: true,
           spreadsheet_id: response.data.spreadsheet_id,
+          title: response.data.title,
           error: "",
         };
       }
@@ -141,6 +142,7 @@ async function getSpreadsheet(
   return {
     status: false,
     spreadsheet_id: "",
+    title: "",
     error: "Max retry attempts reached.",
   };
 }
