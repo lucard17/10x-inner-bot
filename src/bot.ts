@@ -7,8 +7,25 @@ import { handleCallbackQuery } from './handlers/callback.handler';
 import { handleTextMessage } from './handlers/text.handler';
 import { handleAdminCommand } from './handlers/admin_handler';
 
+process.on('unhandledRejection', (err: any) => {
+  console.error('Unhandled rejection:', err?.message ?? err);
+});
+
 const env = getEnv();
-const bot = new TelegramBot(env.TELEGRAM_TOKEN, { polling: true });
+
+const botOptions: TelegramBot.ConstructorOptions = { polling: true };
+if (env.PROXY_URL) {
+  console.log('Using proxy:', env.PROXY_URL);
+  botOptions.request = { proxy: env.PROXY_URL } as any;
+} else {
+  console.log('No proxy configured');
+}
+
+const bot = new TelegramBot(env.TELEGRAM_TOKEN, botOptions);
+
+bot.on('polling_error', (err: any) => {
+  console.error('Polling error:', err?.code ?? err?.message ?? err);
+});
 const redisService = new RedisService();
 const messageService = MessageService.getInstance(bot, redisService.getClient());
 

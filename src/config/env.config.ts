@@ -16,6 +16,7 @@ interface EnvConfig {
   SERVICE_TYPE: string;
   SS_ALL_DATA_URL: string;
   ADMIN_CHAT: string;
+  PROXY_URL: string;
 }
 
 const env: EnvConfig = {
@@ -32,11 +33,12 @@ const env: EnvConfig = {
   SERVICE_TYPE: process.env.SERVICE_TYPE || '',
   SS_ALL_DATA_URL: process.env.SS_ALL_DATA_URL || '',
   ADMIN_CHAT: process.env.ADMIN_CHAT || '',
+  PROXY_URL: process.env.PROXY_URL || '',
 };
 
 export function getEnv(): EnvConfig {
   for (const [key, value] of Object.entries(env)) {
-    if (!value && key !== 'REDIS_HOST' && key !== 'SERVICE_TYPE') {
+    if (!value && key !== 'REDIS_HOST' && key !== 'SERVICE_TYPE' && key !== 'PROXY_URL') {
       throw new Error(`Environment variable ${key} is missing`);
     }
   }
