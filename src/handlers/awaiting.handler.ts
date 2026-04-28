@@ -134,7 +134,7 @@ async function getSpreadsheet(
 
     attempts++;
     if (attempts < maxRetries) {
-      await new Promise((resolve) => setTimeout(resolve, 60000));
+      await new Promise((resolve) => setTimeout(resolve, 5000));
     }
   }
 

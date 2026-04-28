@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import axios from 'axios';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import cron from 'node-cron';
 import FormData from 'form-data';
 import { getEnv } from '../config/env.config';
@@ -16,6 +17,11 @@ import pool from '../db/db.config';
 
 const env = getEnv();
 
+const telegramAxios = axios.create(env.PROXY_URL ? {
+  httpsAgent: new HttpsProxyAgent(env.PROXY_URL),
+  proxy: false,
+} : {});
+
 export class ReportService {
   private pool: Pool;
 
@@ -25,7 +31,7 @@ export class ReportService {
 
   async sendMessage(chatId: number, text: string, replyMarkup?: TelegramBot.InlineKeyboardMarkup): Promise<number | undefined> {
     try {
-      const res = await axios.post(telegramApi.send.message, {
+      const res = await telegramAxios.post(telegramApi.send.message, {
         chat_id: chatId,
         text,
         parse_mode: 'HTML',
@@ -48,9 +54,14 @@ export class ReportService {
       if (replyMarkup) formData.append('reply_markup', JSON.stringify(replyMarkup));
       formData.append('parse_mode', 'HTML');
 
-      await axios.post(telegramApi.send.photo, formData, { headers: formData.getHeaders() });
+      await telegramAxios.post(telegramApi.send.photo, formData, { headers: formData.getHeaders() });
       console.log(`Report Service: Photo sent to chatId ${chatId}`);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('sendPhoto raw error:', JSON.stringify({
+        message: error?.message,
+        status: error?.response?.status,
+        data: error?.response?.data,
+      }, null, 2));
       formatError(error, `Report Service: Failed to send photo to chatId ${chatId}`);
     }
   }
@@ -75,7 +86,7 @@ export class ReportService {
 
       attempts++;
       if (attempts < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 60000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
       }
     }
 

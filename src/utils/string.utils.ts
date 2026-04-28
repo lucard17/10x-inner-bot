@@ -18,7 +18,11 @@ export function getFormatReportTitle(input: string): string {
  * @param {string} context - Context message for the error.
  */
 export function formatError(error: any, context: string): void {
-  const errorMessage = error?.response?.body?.description || (error as Error).message || 'Unknown error';
+  const errorMessage =
+    error?.response?.data?.description ||
+    error?.response?.body?.description ||
+    (error as Error).message ||
+    'Unknown error';
   console.error(`${context} - ${errorMessage.substring(0, 200)}`);
 }
 
