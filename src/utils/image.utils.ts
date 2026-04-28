@@ -223,6 +223,8 @@ export async function getImageForReport(sheetData: any[]): Promise<Buffer | null
       html,
       type: "png",
       encoding: "binary",
+      waitUntil: "networkidle0",
+      timeout: 20000,
       puppeteerArgs: { args: ['--no-sandbox'] }
     }) as Buffer;
 
