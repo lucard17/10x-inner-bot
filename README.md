@@ -49,6 +49,7 @@ A TypeScript-based Telegram bot for managing spreadsheet connections, generating
    PGNAME=
    PGPASS=
    BASE_PORT=3001
+   PROXY_URL=
    ```
 
 4. **Set Up Database**:

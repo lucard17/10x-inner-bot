@@ -198,5 +198,13 @@ export async function handleCallbackQuery(
     console.error(`Callback handler: Unknown action ${action}`);
   }
 
-  await bot.answerCallbackQuery(query.id);
+  try {
+    await bot.answerCallbackQuery(query.id);
+  } catch (err: any) {
+    if (err?.code === 'ETELEGRAM') {
+      console.log('Callback query expired, skipping');
+    } else {
+      throw err;
+    }
+  }
 }
