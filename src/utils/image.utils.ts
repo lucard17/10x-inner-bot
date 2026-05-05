@@ -219,6 +219,7 @@ export async function getImageForReport(sheetData: any[]): Promise<Buffer | null
       </html>
     `;
 
+    const t = Date.now();
     const imageBuffer = await nodeHtmlToImage({
       html,
       type: "png",
@@ -228,6 +229,7 @@ export async function getImageForReport(sheetData: any[]): Promise<Buffer | null
       puppeteerArgs: { args: ['--no-sandbox'] }
     }) as Buffer;
 
+    console.log(`[image] generated in ${Date.now() - t}ms`);
     return imageBuffer;
   } catch (error) {
     console.error("Error creating image:", error);
