@@ -56,12 +56,7 @@ export class ReportService {
 
       await telegramAxios.post(telegramApi.send.photo, formData, { headers: formData.getHeaders() });
       console.log(`Report Service: Photo sent to chatId ${chatId}`);
-    } catch (error: any) {
-      console.error('sendPhoto raw error:', JSON.stringify({
-        message: error?.message,
-        status: error?.response?.status,
-        data: error?.response?.data,
-      }, null, 2));
+    } catch (error) {
       formatError(error, `Report Service: Failed to send photo to chatId ${chatId}`);
     }
   }

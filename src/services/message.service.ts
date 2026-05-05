@@ -137,11 +137,25 @@ export class MessageService {
       }
 
       if (data.text) {
-        await this.bot.editMessageCaption(data.text, {
-          chat_id: chatId,
-          message_id: messageId,
-          parse_mode: 'HTML',
-        } as EditMessageTextOptions);
+        try {
+          await this.bot.editMessageCaption(data.text, {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: data.options,
+          } as EditMessageTextOptions);
+          return;
+        } catch (e: any) {
+          const desc: string = e?.response?.body?.description ?? '';
+          if (!desc.includes('no caption')) throw e;
+          await this.bot.editMessageText(data.text, {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: data.options,
+          });
+          return;
+        }
       }
 
       if (data.options) {
