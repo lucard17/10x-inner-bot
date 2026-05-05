@@ -13,18 +13,28 @@ process.on('unhandledRejection', (err: any) => {
 
 const env = getEnv();
 
-const botOptions: TelegramBot.ConstructorOptions = { polling: true };
+const botOptions: TelegramBot.ConstructorOptions = {
+  polling: {
+    interval: 1000,
+    autoStart: true,
+    params: { timeout: 20 },
+  },
+};
 if (env.PROXY_URL) {
   console.log('Using proxy:', env.PROXY_URL);
-  botOptions.request = { proxy: env.PROXY_URL } as any;
+  botOptions.request = { proxy: env.PROXY_URL, timeout: 30000 } as any;
 } else {
   console.log('No proxy configured');
+  botOptions.request = { timeout: 30000 } as any;
 }
 
 const bot = new TelegramBot(env.TELEGRAM_TOKEN, botOptions);
 
 bot.on('polling_error', (err: any) => {
-  console.error('Polling error:', err?.code ?? err?.message ?? err);
+  const ts = new Date().toISOString();
+  const code = err?.code ?? 'UNKNOWN';
+  const msg = err?.message ?? String(err);
+  console.error(`[polling][${ts}] ${code}: ${msg}`);
 });
 const redisService = new RedisService();
 const messageService = MessageService.getInstance(bot, redisService.getClient());
@@ -60,4 +70,10 @@ bot.on('message', async (msg) => {
 });
 
 console.log('Bot started successfully!');
+
+setInterval(() => {
+  const mem = process.memoryUsage();
+  console.log(`[health] uptime=${Math.floor(process.uptime())}s rss=${Math.round(mem.rss / 1024 / 1024)}MB heap=${Math.round(mem.heapUsed / 1024 / 1024)}/${Math.round(mem.heapTotal / 1024 / 1024)}MB`);
+}, 10 * 60 * 1000);
+
 export { bot, redisService, messageService };
